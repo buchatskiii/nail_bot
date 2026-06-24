@@ -97,23 +97,39 @@ class Database:
         conn.close()
         return affected
 
-    def close_day(self, date: str) -> bool:
-        """Полностью закрывает день для записи"""
+    def close_day(self, date: str) -> list:
+        """
+        Полностью закрывает день для записи.
+        Возвращает список отменённых записей клиентов.
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
+        
+        # Получаем все записи на этот день до закрытия
+        cursor.execute(
+            "SELECT id, user_id, name, phone, time FROM appointments WHERE date = ?",
+            (date,)
+        )
+        cancelled_appointments = [dict(row) for row in cursor.fetchall()]
+        
+        # Закрываем день
         cursor.execute(
             "UPDATE working_days SET is_closed = 1 WHERE date = ?",
             (date,)
         )
-        # Также делаем все слоты этого дня недоступными
+        # Делаем все слоты этого дня недоступными
         cursor.execute(
             "UPDATE time_slots SET is_available = 0 WHERE date = ?",
             (date,)
         )
+        
+        # Удаляем все записи на этот день и освобождаем слоты
+        for app in cancelled_appointments:
+            cursor.execute("DELETE FROM appointments WHERE id = ?", (app["id"],))
+        
         conn.commit()
-        affected = cursor.rowcount > 0
         conn.close()
-        return affected
+        return cancelled_appointments
 
     def open_day(self, date: str) -> bool:
         """Открывает день для записи"""

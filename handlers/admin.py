@@ -344,7 +344,7 @@ async def admin_close_day_start(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(AdminStates.waiting_for_date_close)
-async def admin_close_day_process(message: Message, state: FSMContext):
+async def admin_close_day_process(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает ввод даты для закрытия дня"""
     if not is_admin(message.from_user.id):
         await message.answer("❌ Доступ запрещён.")
@@ -354,20 +354,49 @@ async def admin_close_day_process(message: Message, state: FSMContext):
         date_obj = datetime.datetime.strptime(message.text.strip(), "%d.%m.%Y")
         date_str = date_obj.strftime("%Y-%m-%d")
 
-        if db.close_day(date_str):
-            await message.answer(
-                f"✅ <b>День закрыт для записи!</b>\n\n"
-                f"📅 {date_obj.strftime('%d.%m.%Y')}\n\n"
-                "Все слоты этого дня стали недоступными.",
-                reply_markup=get_admin_panel_keyboard(),
-                parse_mode="HTML"
-            )
+        # Закрываем день и получаем список отменённых записей
+        cancelled_appointments = db.close_day(date_str)
+
+        text = (
+            f"✅ <b>День закрыт для записи!</b>\n\n"
+            f"📅 {date_obj.strftime('%d.%m.%Y')}\n\n"
+            "Все слоты этого дня стали недоступными."
+        )
+
+        if cancelled_appointments:
+            text += f"\n\n❌ <b>Отменено записей: {len(cancelled_appointments)}</b>\n"
+            for app in cancelled_appointments:
+                text += f"  • {app['name']} — {app['time']}\n"
+
+            # Уведомляем каждого клиента об отмене
+            from utils.reminder import remove_reminder_job
+            for app in cancelled_appointments:
+                try:
+                    user_text = (
+                        "❌ <b>Ваша запись была отменена.</b>\n\n"
+                        f"📅 Дата: <b>{date_obj.strftime('%d.%m.%Y')}</b>\n"
+                        f"🕐 Время: <b>{app['time']}</b>\n\n"
+                        "К сожалению, мастер закрыл этот день для записи.\n"
+                        "Вы можете записаться на другой день в главном меню."
+                    )
+                    await bot.send_message(
+                        app["user_id"],
+                        user_text,
+                        reply_markup=get_main_menu_keyboard(),
+                        parse_mode="HTML"
+                    )
+                    # Удаляем задачу напоминания
+                    remove_reminder_job(app["id"])
+                except Exception as e:
+                    print(f"Ошибка уведомления клиента {app['user_id']} об отмене: {e}")
         else:
-            await message.answer(
-                "❌ Не удалось закрыть день. Возможно, он не добавлен как рабочий.\n"
-                "Введите другую дату:"
-            )
-            return
+            text += "\n\n<i>На этот день не было записей.</i>"
+
+        await message.answer(
+            text,
+            reply_markup=get_admin_panel_keyboard(),
+            parse_mode="HTML"
+        )
 
     except ValueError:
         await message.answer(
