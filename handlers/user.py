@@ -563,43 +563,44 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
         except Exception as e:
             print(f"Ошибка отправки в канал расписания: {e}")
 
-    # Отправляем .ics файл для добавления в календарь на телефоне
+    # Отправляем ссылку для добавления в календарь (Google Calendar)
     try:
-        from utils.calendar_invite import create_ics_content
-        import io
+        from urllib.parse import quote
         
         start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-        ics_content = create_ics_content(
-            summary="💅 Запись к мастеру маникюра",
-            description=f"Запись к мастеру маникюра\n\n"
-                       f"👤 Имя: {name}\n"
-                       f"📞 Телефон: {phone}\n"
-                       f"📅 Дата: {date_formatted}\n"
-                       f"🕐 Время: {time}",
-            location="Студия маникюра",
-            start_datetime=start_dt,
-            duration_hours=2,
+        end_dt = start_dt + datetime.timedelta(hours=2)
+        
+        # Форматируем даты для Google Calendar (YYYYMMDDTHHMMSS)
+        start_str = start_dt.strftime("%Y%m%dT%H%M%S")
+        end_str = end_dt.strftime("%Y%m%dT%H%M%S")
+        
+        # Собираем ссылку Google Calendar
+        text = quote("💅 Запись к мастеру маникюра")
+        details = quote(f"Запись к мастеру маникюра\n👤 {name}\n📞 {phone}")
+        location = quote("Студия маникюра")
+        
+        gcal_url = (
+            f"https://www.google.com/calendar/render"
+            f"?action=TEMPLATE"
+            f"&text={text}"
+            f"&dates={start_str}/{end_str}"
+            f"&details={details}"
+            f"&location={location}"
+            f"&ctz=Europe/Moscow"
         )
         
-        # Отправляем .ics файл напрямую в Telegram
-        ics_bytes = ics_content.encode("utf-8")
-        ics_file = io.BytesIO(ics_bytes)
-        ics_file.name = f"appointment_{appointment_id}.ics"
-        
-        await callback.message.answer_document(
-            document=ics_file,
-            caption=(
-                "📅 <b>Добавьте событие в календарь</b>\n\n"
-                "Нажмите на файл выше, чтобы открыть его.\n"
-                "Телефон сам предложит добавить событие в календарь ✅\n\n"
-                "📱 <b>iOS:</b> Нажмите на файл → «Добавить в Календарь»\n"
-                "📱 <b>Android:</b> Нажмите на файл → выберите "
-                "«Календарь» или «Добавить событие»"
-            ),
-            parse_mode="HTML"
+        await callback.message.answer(
+            "📅 <b>Добавьте событие в календарь</b>\n\n"
+            "Нажмите на кнопку ниже, чтобы добавить запись "
+            "в ваш календарь:\n\n"
+            f"🔗 <a href='{gcal_url}'>➕ Добавить в календарь</a>\n\n"
+            "📱 <b>Работает на iOS и Android</b> — "
+            "календарь откроется автоматически ✅",
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
     except Exception as e:
-        print(f"Ошибка при создании .ics файла: {e}")
+        print(f"Ошибка при создании ссылки на календарь: {e}")
 
     # Планируем напоминание, если до записи больше 24 часов
     from utils.reminder import schedule_reminder
