@@ -107,9 +107,10 @@ class Database:
         try:
             # Получаем все записи на этот день до закрытия
             cursor.execute(
-                "SELECT id, user_id, name, phone, time FROM appointments WHERE date = ?",
+                "SELECT id, user_id, name, phone, date, time FROM appointments WHERE date = ?",
                 (date,)
             )
+
             cancelled_appointments = [dict(row) for row in cursor.fetchall()]
             
             # Закрываем день
