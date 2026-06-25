@@ -240,6 +240,9 @@ def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="❌ Отменить запись клиента", callback_data="admin_cancel_appointment")
     )
     builder.row(
+        InlineKeyboardButton(text="📋 Все записи", callback_data="admin_all_appointments")
+    )
+    builder.row(
         InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
     )
 

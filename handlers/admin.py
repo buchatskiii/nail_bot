@@ -606,6 +606,47 @@ async def admin_view_schedule_process(message: Message, state: FSMContext):
     await state.clear()
 
 
+# ==================== Просмотр всех записей ====================
+
+@router.callback_query(F.data == "admin_all_appointments")
+async def admin_all_appointments(callback: CallbackQuery):
+    """Показывает все записи клиентов со статистикой"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён.", show_alert=True)
+        return
+
+    stats = db.get_all_appointments_with_stats()
+    appointments = stats["appointments"]
+
+    text = (
+        "📋 <b>Все записи клиентов</b>\n\n"
+        f"📊 <b>Статистика:</b>\n"
+        f"  • Всего записей: <b>{stats['total']}</b>\n"
+        f"  • Предстоящие: <b>{stats['upcoming']}</b>\n"
+        f"  • Прошедшие: <b>{stats['past']}</b>\n\n"
+    )
+
+    if not appointments:
+        text += "<i>Записей пока нет.</i>"
+    else:
+        text += "<b>Список записей:</b>\n"
+        for i, app in enumerate(appointments, 1):
+            date_obj = datetime.datetime.strptime(app["date"], "%Y-%m-%d")
+            date_formatted = date_obj.strftime("%d.%m.%Y")
+            text += (
+                f"\n{i}. 👤 <b>{app['name']}</b>\n"
+                f"   📞 {app['phone']}\n"
+                f"   📅 {date_formatted} в {app['time']}\n"
+            )
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_admin_panel_keyboard(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
 # ==================== Отмена записи клиента (админ) ====================
 
 @router.callback_query(F.data == "admin_cancel_appointment")

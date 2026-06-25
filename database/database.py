@@ -397,6 +397,39 @@ class Database:
         conn.close()
         return appointments
 
+    def get_all_appointments_with_stats(self) -> dict:
+        """
+        Возвращает все записи и статистику.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Все записи
+        cursor.execute(
+            "SELECT id, user_id, username, name, phone, date, time, created_at FROM appointments ORDER BY date DESC, time DESC"
+        )
+        all_appointments = [dict(row) for row in cursor.fetchall()]
+        
+        # Статистика
+        cursor.execute("SELECT COUNT(*) as cnt FROM appointments")
+        total = cursor.fetchone()["cnt"]
+        
+        today = datetime.date.today().isoformat()
+        cursor.execute("SELECT COUNT(*) as cnt FROM appointments WHERE date >= ?", (today,))
+        upcoming = cursor.fetchone()["cnt"]
+        
+        cursor.execute("SELECT COUNT(*) as cnt FROM appointments WHERE date < ?", (today,))
+        past = cursor.fetchone()["cnt"]
+        
+        conn.close()
+        
+        return {
+            "total": total,
+            "upcoming": upcoming,
+            "past": past,
+            "appointments": all_appointments
+        }
+
     def has_user_appointment(self, user_id: int) -> bool:
         """Проверяет, есть ли у пользователя активная запись"""
         conn = self._get_connection()
