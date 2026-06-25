@@ -566,7 +566,7 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Отправляем .ics файл для добавления в календарь на телефоне
     try:
         from utils.calendar_invite import create_ics_content
-        from utils.ics_server import save_ics_file, get_ics_url
+        import io
         
         start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
         ics_content = create_ics_content(
@@ -581,24 +581,21 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
             duration_hours=2,
         )
         
-        # Сохраняем .ics файл на сервере
-        ics_filename = f"appointment_{appointment_id}.ics"
-        save_ics_file(ics_filename, ics_content)
+        # Отправляем .ics файл напрямую в Telegram
+        ics_bytes = ics_content.encode("utf-8")
+        ics_file = io.BytesIO(ics_bytes)
+        ics_file.name = f"appointment_{appointment_id}.ics"
         
-        # Получаем ссылку на файл
-        ics_url = get_ics_url(ics_filename)
-        
-        # Отправляем ссылку на .ics файл
-        # На iOS при нажатии на ссылку телефон сам предложит добавить в календарь
-        await callback.message.answer(
-            "📅 <b>Добавьте событие в календарь</b>\n\n"
-            "Нажмите на ссылку ниже, чтобы добавить запись "
-            "в календарь на вашем телефоне:\n\n"
-            f"🔗 <a href='{ics_url}'>Добавить в календарь</a>\n\n"
-            "📱 <b>iOS:</b> Нажмите на ссылку → телефон предложит "
-            "открыть в Календаре ✅\n"
-            "📱 <b>Android:</b> Нажмите на ссылку → выберите "
-            "«Календарь» или «Добавить событие»",
+        await callback.message.answer_document(
+            document=ics_file,
+            caption=(
+                "📅 <b>Добавьте событие в календарь</b>\n\n"
+                "Нажмите на файл выше, чтобы открыть его.\n"
+                "Телефон сам предложит добавить событие в календарь ✅\n\n"
+                "📱 <b>iOS:</b> Нажмите на файл → «Добавить в Календарь»\n"
+                "📱 <b>Android:</b> Нажмите на файл → выберите "
+                "«Календарь» или «Добавить событие»"
+            ),
             parse_mode="HTML"
         )
     except Exception as e:
