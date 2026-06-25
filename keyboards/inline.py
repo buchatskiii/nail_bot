@@ -187,6 +187,9 @@ def get_subscription_check_keyboard() -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")
     )
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_menu")
+    )
     return builder.as_markup()
 
 
