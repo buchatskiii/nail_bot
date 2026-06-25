@@ -564,7 +564,9 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Отправляем .ics файл для добавления в календарь на телефоне
     try:
         from utils.calendar_invite import create_ics_content
-        import io
+        from aiogram.types import FSInputFile
+        import tempfile
+        import os
         
         start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
         ics_content = create_ics_content(
@@ -579,8 +581,18 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
             duration_hours=2,
         )
         
-        ics_file = io.BytesIO(ics_content.encode("utf-8"))
-        ics_file.name = f"appointment_{date}_{time.replace(':', '-')}.ics"
+        # Сохраняем во временный файл и отправляем через FSInputFile
+        # Это обеспечивает правильный MIME-тип для iOS
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".ics",
+            encoding="utf-8",
+            delete=False
+        ) as tmp_file:
+            tmp_file.write(ics_content)
+            tmp_path = tmp_file.name
+        
+        ics_file = FSInputFile(tmp_path, filename=f"appointment_{date_formatted.replace('.', '-')}.ics")
         
         await callback.message.answer_document(
             document=ics_file,
@@ -591,6 +603,9 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
             ),
             parse_mode="HTML"
         )
+        
+        # Удаляем временный файл
+        os.unlink(tmp_path)
     except Exception as e:
         print(f"Ошибка при отправке .ics файла: {e}")
 
