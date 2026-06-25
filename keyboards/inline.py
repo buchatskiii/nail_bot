@@ -219,6 +219,9 @@ def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="📅 Добавить рабочий день", callback_data="admin_add_day")
     )
     builder.row(
+        InlineKeyboardButton(text="🗑️ Удалить рабочий день", callback_data="admin_remove_day")
+    )
+    builder.row(
         InlineKeyboardButton(text="🕐 Добавить слот", callback_data="admin_add_slot")
     )
     builder.row(
@@ -226,6 +229,9 @@ def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
     )
     builder.row(
         InlineKeyboardButton(text="🚫 Закрыть день", callback_data="admin_close_day")
+    )
+    builder.row(
+        InlineKeyboardButton(text="✅ Открыть день", callback_data="admin_open_day")
     )
     builder.row(
         InlineKeyboardButton(text="📋 Просмотр расписания", callback_data="admin_view_schedule")

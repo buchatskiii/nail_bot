@@ -24,6 +24,14 @@ from config import ADMIN_ID
 router = Router()
 
 
+# ==================== Обработчик "пустых" кнопок ====================
+
+@router.callback_query(F.data == "ignore")
+async def ignore_callback(callback: CallbackQuery):
+    """Игнорирует нажатия на неактивные кнопки"""
+    await callback.answer()
+
+
 # ==================== Фильтр администратора ====================
 
 def is_admin(user_id: int) -> bool:
@@ -41,6 +49,8 @@ class AdminStates(StatesGroup):
     waiting_for_date_slot_remove = State()  # Ожидание ввода даты для удаления слота
     waiting_for_time_slot_remove = State()  # Ожидание ввода времени для удаления слота
     waiting_for_date_close = State()  # Ожидание ввода даты для закрытия дня
+    waiting_for_date_open = State()  # Ожидание ввода даты для открытия дня
+    waiting_for_date_remove_day = State()  # Ожидание ввода даты для удаления рабочего дня
     waiting_for_date_view = State()  # Ожидание ввода даты для просмотра расписания
 
 
@@ -397,6 +407,122 @@ async def admin_close_day_process(message: Message, state: FSMContext, bot: Bot)
             reply_markup=get_admin_panel_keyboard(),
             parse_mode="HTML"
         )
+
+    except ValueError:
+        await message.answer(
+            "❌ Неверный формат даты.\n"
+            "Введите дату в формате <b>ДД.ММ.ГГГГ</b>:",
+            parse_mode="HTML"
+        )
+        return
+
+    await state.clear()
+
+
+# ==================== Открытие дня ====================
+
+@router.callback_query(F.data == "admin_open_day")
+async def admin_open_day_start(callback: CallbackQuery, state: FSMContext):
+    """Начинает процесс открытия дня"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён.", show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        "✅ <b>Открытие дня для записи</b>\n\n"
+        "Введите дату в формате <b>ДД.ММ.ГГГГ</b>\n"
+        "Например: 25.06.2026",
+        reply_markup=get_back_keyboard("admin_panel"),
+        parse_mode="HTML"
+    )
+    await state.set_state(AdminStates.waiting_for_date_open)
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_for_date_open)
+async def admin_open_day_process(message: Message, state: FSMContext):
+    """Обрабатывает ввод даты для открытия дня"""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён.")
+        return
+
+    try:
+        date_obj = datetime.datetime.strptime(message.text.strip(), "%d.%m.%Y")
+        date_str = date_obj.strftime("%Y-%m-%d")
+
+        if db.open_day(date_str):
+            await message.answer(
+                f"✅ <b>День открыт для записи!</b>\n\n"
+                f"📅 {date_obj.strftime('%d.%m.%Y')}\n\n"
+                "Теперь клиенты могут записываться на этот день.",
+                reply_markup=get_admin_panel_keyboard(),
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                f"❌ Не удалось открыть день {date_obj.strftime('%d.%m.%Y')}.\n"
+                "Возможно, этот день не является рабочим.\n"
+                "Введите другую дату:"
+            )
+            return
+
+    except ValueError:
+        await message.answer(
+            "❌ Неверный формат даты.\n"
+            "Введите дату в формате <b>ДД.ММ.ГГГГ</b>:",
+            parse_mode="HTML"
+        )
+        return
+
+    await state.clear()
+
+
+# ==================== Удаление рабочего дня ====================
+
+@router.callback_query(F.data == "admin_remove_day")
+async def admin_remove_day_start(callback: CallbackQuery, state: FSMContext):
+    """Начинает процесс удаления рабочего дня"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("❌ Доступ запрещён.", show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        "🗑️ <b>Удаление рабочего дня</b>\n\n"
+        "Введите дату в формате <b>ДД.ММ.ГГГГ</b>\n"
+        "Например: 25.06.2026",
+        reply_markup=get_back_keyboard("admin_panel"),
+        parse_mode="HTML"
+    )
+    await state.set_state(AdminStates.waiting_for_date_remove_day)
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_for_date_remove_day)
+async def admin_remove_day_process(message: Message, state: FSMContext):
+    """Обрабатывает ввод даты для удаления рабочего дня"""
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Доступ запрещён.")
+        return
+
+    try:
+        date_obj = datetime.datetime.strptime(message.text.strip(), "%d.%m.%Y")
+        date_str = date_obj.strftime("%Y-%m-%d")
+
+        if db.remove_working_day(date_str):
+            await message.answer(
+                f"✅ <b>Рабочий день удалён!</b>\n\n"
+                f"📅 {date_obj.strftime('%d.%m.%Y')}\n\n"
+                "Все слоты этого дня также удалены.",
+                reply_markup=get_admin_panel_keyboard(),
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer(
+                f"❌ Не удалось удалить день {date_obj.strftime('%d.%m.%Y')}.\n"
+                "Возможно, этот день не является рабочим.\n"
+                "Введите другую дату:"
+            )
+            return
 
     except ValueError:
         await message.answer(

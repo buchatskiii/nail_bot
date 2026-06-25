@@ -27,6 +27,14 @@ from utils.subscription import check_subscription
 router = Router()
 
 
+# ==================== Обработчик "пустых" кнопок ====================
+
+@router.callback_query(F.data == "ignore")
+async def ignore_callback(callback: CallbackQuery):
+    """Игнорирует нажатия на неактивные кнопки (заголовки, пустые дни)"""
+    await callback.answer()
+
+
 # ==================== Диагностическая команда ====================
 
 @router.message(Command("chatid"))
@@ -143,11 +151,11 @@ async def show_portfolio(callback: CallbackQuery):
 # ==================== Проверка подписки ====================
 
 @router.callback_query(F.data == "check_subscription")
-async def check_subscription_handler(callback: CallbackQuery, state: FSMContext):
+async def check_subscription_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
     """Проверяет подписку пользователя на канал"""
     user_id = callback.from_user.id
 
-    if await check_subscription(user_id):
+    if await check_subscription(user_id, bot):
         await callback.message.edit_text(
             "✅ <b>Подписка подтверждена!</b>\n\n"
             "Теперь вы можете записаться на услугу.",
@@ -174,7 +182,7 @@ async def book_appointment(callback: CallbackQuery, state: FSMContext, bot: Bot)
     # Проверяем подписку на канал
     if CHANNEL_ID != 0:
         try:
-            is_subscribed = await check_subscription(user_id)
+            is_subscribed = await check_subscription(user_id, bot)
         except Exception:
             is_subscribed = False
 
@@ -413,9 +421,19 @@ async def process_phone(message: Message, state: FSMContext):
 
     # Получаем все данные для подтверждения
     data = await state.get_data()
-    date = data["selected_date"]
-    time = data["selected_time"]
-    name = data["client_name"]
+    date = data.get("selected_date")
+    time = data.get("selected_time")
+    name = data.get("client_name")
+
+    if not all([date, time, name]):
+        await message.answer(
+            "❌ <b>Сессия истекла.</b>\n\n"
+            "Пожалуйста, начните запись заново.",
+            reply_markup=get_main_menu_keyboard(is_admin=(message.from_user.id == ADMIN_ID)),
+            parse_mode="HTML"
+        )
+        await state.clear()
+        return
 
     # Форматируем дату
     date_obj = datetime.datetime.strptime(date, "%Y-%m-%d")

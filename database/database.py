@@ -91,11 +91,11 @@ class Database:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM working_days WHERE date = ?", (date,))
+        days_deleted = cursor.rowcount
         cursor.execute("DELETE FROM time_slots WHERE date = ?", (date,))
         conn.commit()
-        affected = cursor.rowcount > 0
         conn.close()
-        return affected
+        return days_deleted > 0
 
     def close_day(self, date: str) -> list:
         """
@@ -104,32 +104,37 @@ class Database:
         """
         conn = self._get_connection()
         cursor = conn.cursor()
-        
-        # Получаем все записи на этот день до закрытия
-        cursor.execute(
-            "SELECT id, user_id, name, phone, time FROM appointments WHERE date = ?",
-            (date,)
-        )
-        cancelled_appointments = [dict(row) for row in cursor.fetchall()]
-        
-        # Закрываем день
-        cursor.execute(
-            "UPDATE working_days SET is_closed = 1 WHERE date = ?",
-            (date,)
-        )
-        # Делаем все слоты этого дня недоступными
-        cursor.execute(
-            "UPDATE time_slots SET is_available = 0 WHERE date = ?",
-            (date,)
-        )
-        
-        # Удаляем все записи на этот день и освобождаем слоты
-        for app in cancelled_appointments:
-            cursor.execute("DELETE FROM appointments WHERE id = ?", (app["id"],))
-        
-        conn.commit()
-        conn.close()
-        return cancelled_appointments
+        try:
+            # Получаем все записи на этот день до закрытия
+            cursor.execute(
+                "SELECT id, user_id, name, phone, time FROM appointments WHERE date = ?",
+                (date,)
+            )
+            cancelled_appointments = [dict(row) for row in cursor.fetchall()]
+            
+            # Закрываем день
+            cursor.execute(
+                "UPDATE working_days SET is_closed = 1 WHERE date = ?",
+                (date,)
+            )
+            # Делаем все слоты этого дня недоступными
+            cursor.execute(
+                "UPDATE time_slots SET is_available = 0 WHERE date = ?",
+                (date,)
+            )
+            
+            # Удаляем все записи на этот день
+            for app in cancelled_appointments:
+                cursor.execute("DELETE FROM appointments WHERE id = ?", (app["id"],))
+            
+            conn.commit()
+            return cancelled_appointments
+        except Exception as e:
+            conn.rollback()
+            print(f"Ошибка при закрытии дня {date}: {e}")
+            return []
+        finally:
+            conn.close()
 
     def open_day(self, date: str) -> bool:
         """Открывает день для записи"""
