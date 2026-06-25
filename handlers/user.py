@@ -691,6 +691,10 @@ async def cancel_user_appointment(callback: CallbackQuery, bot: Bot):
         date_obj = datetime.datetime.strptime(appointment["date"], "%Y-%m-%d")
         date_formatted = date_obj.strftime("%d.%m.%Y")
 
+        # Ссылка на удаление из календаря
+        from utils.calendar_invite import get_gcal_remove_url
+        gcal_remove_url = get_gcal_remove_url(appointment["date"], appointment["time"])
+
         await callback.message.edit_text(
             "✅ <b>Запись успешно отменена!</b>\n\n"
             f"📅 {date_formatted} в {appointment['time']}\n\n"
@@ -698,6 +702,19 @@ async def cancel_user_appointment(callback: CallbackQuery, bot: Bot):
             reply_markup=get_main_menu_keyboard(is_admin=(user_id == ADMIN_ID)),
             parse_mode="HTML"
         )
+
+        # Отправляем ссылку на удаление из календаря отдельным сообщением
+        try:
+            await callback.message.answer(
+                "📅 <b>Удалите событие из календаря</b>\n\n"
+                "Если вы добавляли запись в календарь, "
+                "нажмите на ссылку ниже, чтобы убрать её:\n\n"
+                f"🔗 <a href='{gcal_remove_url}'>🗑️ Убрать из календаря</a>",
+                parse_mode="HTML",
+                disable_web_page_preview=True
+            )
+        except Exception as e:
+            print(f"Ошибка отправки ссылки на удаление из календаря: {e}")
 
         # Уведомляем администратора
         if ADMIN_ID:
@@ -716,3 +733,5 @@ async def cancel_user_appointment(callback: CallbackQuery, bot: Bot):
         await callback.answer("❌ Не удалось отменить запись.", show_alert=True)
 
     await callback.answer()
+
+

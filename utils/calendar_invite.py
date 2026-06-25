@@ -14,6 +14,29 @@ def _format_dt(dt: datetime.datetime) -> str:
     return dt.strftime(f"%Y%m%dT%H%M%S")
 
 
+def get_gcal_remove_url(date: str, time: str) -> str:
+    """
+    Генерирует ссылку Google Calendar для удаления события.
+    Открывает календарь на нужной дате, чтобы пользователь мог удалить событие вручную.
+    """
+    from urllib.parse import quote
+    start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+    end_dt = start_dt + datetime.timedelta(hours=2)
+    
+    start_str = start_dt.strftime("%Y%m%dT%H%M%S")
+    end_str = end_dt.strftime("%Y%m%dT%H%M%S")
+    
+    # Ссылка на просмотр/редактирование события в указанном диапазоне
+    return (
+        f"https://www.google.com/calendar/render"
+        f"?action=TEMPLATE"
+        f"&text={quote('❌ Запись отменена')}"
+        f"&dates={start_str}/{end_str}"
+        f"&details={quote('Эта запись была отменена. Вы можете удалить событие из календаря.')}"
+        f"&ctz=Europe/Moscow"
+    )
+
+
 def create_ics_content(
     summary: str,
     description: str,
@@ -22,6 +45,7 @@ def create_ics_content(
     duration_hours: int = 2,
     uid: Optional[str] = None,
 ) -> str:
+
     """
     Создаёт содержимое .ics файла для добавления события в календарь.
     Использует московское время (UTC+3) для корректной работы на iOS/Android.

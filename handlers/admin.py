@@ -380,25 +380,30 @@ async def admin_close_day_process(message: Message, state: FSMContext, bot: Bot)
 
             # Уведомляем каждого клиента об отмене
             from utils.reminder import remove_reminder_job
+            from utils.calendar_invite import get_gcal_remove_url
             for app in cancelled_appointments:
                 try:
+                    gcal_remove_url = get_gcal_remove_url(app["date"], app["time"])
                     user_text = (
                         "❌ <b>Ваша запись была отменена.</b>\n\n"
                         f"📅 Дата: <b>{date_obj.strftime('%d.%m.%Y')}</b>\n"
                         f"🕐 Время: <b>{app['time']}</b>\n\n"
                         "К сожалению, мастер закрыл этот день для записи.\n"
-                        "Вы можете записаться на другой день в главном меню."
+                        "Вы можете записаться на другой день в главном меню.\n\n"
+                        f"📅 <a href='{gcal_remove_url}'>🗑️ Убрать из календаря</a>"
                     )
                     await bot.send_message(
                         app["user_id"],
                         user_text,
                         reply_markup=get_main_menu_keyboard(),
-                        parse_mode="HTML"
+                        parse_mode="HTML",
+                        disable_web_page_preview=True
                     )
                     # Удаляем задачу напоминания
                     remove_reminder_job(app["id"])
                 except Exception as e:
                     print(f"Ошибка уведомления клиента {app['user_id']} об отмене: {e}")
+
         else:
             text += "\n\n<i>На этот день не было записей.</i>"
 
@@ -712,20 +717,25 @@ async def admin_cancel_appointment_confirm(callback: CallbackQuery, bot: Bot):
 
         # Уведомляем клиента об отмене
         try:
+            from utils.calendar_invite import get_gcal_remove_url
+            gcal_remove_url = get_gcal_remove_url(appointment["date"], appointment["time"])
             user_text = (
                 "❌ <b>Ваша запись была отменена администратором.</b>\n\n"
                 f"📅 Дата: <b>{date_formatted}</b>\n"
                 f"🕐 Время: <b>{appointment['time']}</b>\n\n"
-                "Вы можете записаться заново в главном меню."
+                "Вы можете записаться заново в главном меню.\n\n"
+                f"📅 <a href='{gcal_remove_url}'>🗑️ Убрать из календаря</a>"
             )
             await bot.send_message(
                 appointment["user_id"],
                 user_text,
                 reply_markup=get_main_menu_keyboard(),
-                parse_mode="HTML"
+                parse_mode="HTML",
+                disable_web_page_preview=True
             )
         except Exception as e:
             print(f"Ошибка уведомления клиента об отмене: {e}")
+
     else:
         await callback.answer("❌ Не удалось отменить запись.", show_alert=True)
 
