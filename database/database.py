@@ -176,12 +176,23 @@ class Database:
     # ==================== Временные слоты ====================
 
     def add_time_slot(self, date: str, time: str) -> bool:
-        """Добавляет временной слот для указанной даты"""
+        """Добавляет временной слот для указанной даты.
+        Если слот уже существует, но недоступен — делает его доступным."""
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
+            # Пробуем вставить новый слот
             cursor.execute(
                 "INSERT OR IGNORE INTO time_slots (date, time) VALUES (?, ?)",
+                (date, time)
+            )
+            if cursor.rowcount > 0:
+                conn.commit()
+                return True
+            
+            # Если слот уже существует, проверяем его статус и делаем доступным
+            cursor.execute(
+                "UPDATE time_slots SET is_available = 1 WHERE date = ? AND time = ? AND is_available = 0",
                 (date, time)
             )
             conn.commit()
@@ -190,6 +201,7 @@ class Database:
             return False
         finally:
             conn.close()
+
 
     def remove_time_slot(self, date: str, time: str) -> bool:
         """Удаляет временной слот"""
