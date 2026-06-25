@@ -20,6 +20,7 @@ from keyboards.inline import (
     get_my_appointments_keyboard,
     get_portfolio_keyboard,
     get_back_keyboard,
+    get_back_with_home_keyboard,
 )
 from config import ADMIN_ID, SCHEDULE_CHANNEL_ID, CHANNEL_ID, BOT_TOKEN
 from utils.subscription import check_subscription
@@ -366,7 +367,7 @@ async def select_time(callback: CallbackQuery, state: FSMContext):
         f"Дата: <b>{date_formatted}</b>\n"
         f"Время: <b>{time}</b>\n\n"
         "✏️ <b>Введите ваше имя:</b>",
-        reply_markup=get_back_keyboard("back_to_calendar"),
+        reply_markup=get_back_with_home_keyboard("back_to_calendar"),
         parse_mode="HTML"
     )
 
@@ -393,7 +394,7 @@ async def process_name(message: Message, state: FSMContext):
     await message.answer(
         "📞 <b>Введите ваш номер телефона:</b>\n\n"
         "Например: +7 (999) 123-45-67",
-        reply_markup=get_back_keyboard("back_to_calendar"),
+        reply_markup=get_back_with_home_keyboard("back_to_calendar"),
         parse_mode="HTML"
     )
 

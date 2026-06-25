@@ -9,6 +9,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand, BotCommandScopeDefault
 
 from config import BOT_TOKEN
 from handlers.user import router as user_router
@@ -21,6 +22,15 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+async def set_bot_commands(bot: Bot):
+    """Устанавливает команды бота в меню Telegram"""
+    commands = [
+        BotCommand(command="start", description="🏠 Главное меню"),
+    ]
+    await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
+    logger.info("Команды бота установлены")
 
 
 async def main():
@@ -45,6 +55,9 @@ async def main():
     # Регистрируем роутеры
     dp.include_router(user_router)
     dp.include_router(admin_router)
+
+    # Устанавливаем команды бота (чтобы /start всегда была в меню)
+    await set_bot_commands(bot)
 
     # Запускаем планировщик напоминаний
     start_scheduler()

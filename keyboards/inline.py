@@ -164,6 +164,9 @@ def get_time_slots_keyboard(slots: List[str], date: str) -> InlineKeyboardMarkup
     builder.row(
         InlineKeyboardButton(text="🔙 Назад к календарю", callback_data="back_to_calendar")
     )
+    builder.row(
+        InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")
+    )
 
     return builder.as_markup()
 
@@ -174,6 +177,9 @@ def get_confirmation_keyboard(date: str, time: str) -> InlineKeyboardMarkup:
     builder.row(
         InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"confirm_{date}_{time}"),
         InlineKeyboardButton(text="❌ Отменить", callback_data="cancel_booking")
+    )
+    builder.row(
+        InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")
     )
     return builder.as_markup()
 
@@ -321,6 +327,18 @@ def get_back_keyboard(callback_data: str = "back_to_menu") -> InlineKeyboardMark
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="🔙 Назад", callback_data=callback_data)
+    )
+    return builder.as_markup()
+
+
+def get_back_with_home_keyboard(back_callback: str = "back_to_menu") -> InlineKeyboardMarkup:
+    """Клавиатура с кнопкой назад и кнопкой главного меню"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🔙 Назад", callback_data=back_callback)
+    )
+    builder.row(
+        InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")
     )
     return builder.as_markup()
 
