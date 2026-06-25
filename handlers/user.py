@@ -561,6 +561,39 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
         except Exception as e:
             print(f"Ошибка отправки в канал расписания: {e}")
 
+    # Отправляем .ics файл для добавления в календарь на телефоне
+    try:
+        from utils.calendar_invite import create_ics_content
+        import io
+        
+        start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+        ics_content = create_ics_content(
+            summary="💅 Запись к мастеру маникюра",
+            description=f"Запись к мастеру маникюра\n\n"
+                       f"👤 Имя: {name}\n"
+                       f"📞 Телефон: {phone}\n"
+                       f"📅 Дата: {date_formatted}\n"
+                       f"🕐 Время: {time}",
+            location="Студия маникюра",
+            start_datetime=start_dt,
+            duration_hours=2,
+        )
+        
+        ics_file = io.BytesIO(ics_content.encode("utf-8"))
+        ics_file.name = f"appointment_{date}_{time.replace(':', '-')}.ics"
+        
+        await callback.message.answer_document(
+            document=ics_file,
+            caption=(
+                "📅 <b>Добавьте событие в календарь</b>\n\n"
+                "Нажмите на файл выше, чтобы открыть его — "
+                "ваш телефон предложит добавить запись в календарь 📱"
+            ),
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Ошибка при отправке .ics файла: {e}")
+
     # Планируем напоминание, если до записи больше 24 часов
     from utils.reminder import schedule_reminder
     await schedule_reminder(bot, user_id, date, time, name)
