@@ -269,10 +269,10 @@ class Database:
     # ==================== Записи клиентов ====================
 
     def create_appointment(self, user_id: int, username: str, name: str,
-                           phone: str, date: str, time: str) -> bool:
+                           phone: str, date: str, time: str) -> int:
         """
         Создаёт запись клиента.
-        Возвращает True, если запись успешно создана.
+        Возвращает ID созданной записи или 0 в случае ошибки.
         """
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -283,9 +283,9 @@ class Database:
                 (user_id, username, name, phone, date, time)
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return cursor.lastrowid or 0
         except sqlite3.IntegrityError:
-            return False
+            return 0
         finally:
             conn.close()
 

@@ -15,6 +15,7 @@ from config import BOT_TOKEN
 from handlers.user import router as user_router
 from handlers.admin import router as admin_router
 from utils.reminder import start_scheduler, restore_reminders
+from utils.ics_server import start_ics_server
 
 # Настройка логирования
 logging.basicConfig(
@@ -64,6 +65,9 @@ async def main():
 
     # Восстанавливаем задачи напоминаний из БД
     await restore_reminders(bot)
+
+    # Запускаем HTTP-сервер для раздачи .ics файлов (для iOS календаря)
+    await start_ics_server()
 
     # Пропускаем накопившиеся обновления и запускаем бота
     logger.info("Бот запущен!")

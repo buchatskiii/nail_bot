@@ -504,7 +504,8 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
         return
 
     # Создаём запись в БД
-    if not db.create_appointment(user_id, username, name, phone, date, time):
+    appointment_id = db.create_appointment(user_id, username, name, phone, date, time)
+    if not appointment_id:
         # Если не удалось создать запись, освобождаем слот
         db.release_slot(date, time)
         await callback.message.edit_text(
@@ -565,9 +566,7 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Отправляем .ics файл для добавления в календарь на телефоне
     try:
         from utils.calendar_invite import create_ics_content
-        from aiogram.types import FSInputFile
-        import tempfile
-        import os
+        from utils.ics_server import save_ics_file, get_ics_url
         
         start_dt = datetime.datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
         ics_content = create_ics_content(
@@ -582,33 +581,28 @@ async def confirm_booking(callback: CallbackQuery, state: FSMContext, bot: Bot):
             duration_hours=2,
         )
         
-        # Сохраняем во временный файл и отправляем через FSInputFile
-        # Это обеспечивает правильный MIME-тип для iOS
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            suffix=".ics",
-            encoding="utf-8",
-            delete=False
-        ) as tmp_file:
-            tmp_file.write(ics_content)
-            tmp_path = tmp_file.name
+        # Сохраняем .ics файл на сервере
+        ics_filename = f"appointment_{appointment_id}.ics"
+        save_ics_file(ics_filename, ics_content)
         
-        ics_file = FSInputFile(tmp_path, filename=f"appointment_{date_formatted.replace('.', '-')}.ics")
+        # Получаем ссылку на файл
+        ics_url = get_ics_url(ics_filename)
         
-        await callback.message.answer_document(
-            document=ics_file,
-            caption=(
-                "📅 <b>Добавьте событие в календарь</b>\n\n"
-                "Нажмите на файл выше, чтобы открыть его — "
-                "ваш телефон предложит добавить запись в календарь 📱"
-            ),
+        # Отправляем ссылку на .ics файл
+        # На iOS при нажатии на ссылку телефон сам предложит добавить в календарь
+        await callback.message.answer(
+            "📅 <b>Добавьте событие в календарь</b>\n\n"
+            "Нажмите на ссылку ниже, чтобы добавить запись "
+            "в календарь на вашем телефоне:\n\n"
+            f"🔗 <a href='{ics_url}'>Добавить в календарь</a>\n\n"
+            "📱 <b>iOS:</b> Нажмите на ссылку → телефон предложит "
+            "открыть в Календаре ✅\n"
+            "📱 <b>Android:</b> Нажмите на ссылку → выберите "
+            "«Календарь» или «Добавить событие»",
             parse_mode="HTML"
         )
-        
-        # Удаляем временный файл
-        os.unlink(tmp_path)
     except Exception as e:
-        print(f"Ошибка при отправке .ics файла: {e}")
+        print(f"Ошибка при создании .ics файла: {e}")
 
     # Планируем напоминание, если до записи больше 24 часов
     from utils.reminder import schedule_reminder
