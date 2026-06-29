@@ -1,0 +1,27 @@
+# Environment variables
+.env
+
+# Database
+*.db
+database/*.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Deployment
+deploy_to_server.ps1
